@@ -83,11 +83,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
 
     print("🤖 Bot running...")
-    app.run_polling(
-        poll_interval=2,
-        timeout=20,
-        drop_pending_updates=True
-    )
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
