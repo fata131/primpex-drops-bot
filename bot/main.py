@@ -1,111 +1,161 @@
 import os
+import asyncio
 import random
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-)
+import datetime
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+ADMIN_ID = 6858086328
+VIP_PRICE = "₦10,000"
+VIP_DAYS = 30
+
+BANK_DETAILS = (
+    "🏦 *Bank Payment Details*\n\n"
+    "Bank: *Opay*\n"
+    "Account Number: *9163998203*\n"
+    "Account Name: *Lukmon Fatai Olamide*\n\n"
+    "Amount: *₦10,000*"
+)
+
 WHATSAPP_GROUP = "https://chat.whatsapp.com/JPA9XEkRReQ3fpzQ7Y4Ldt?mode=hqrt3"
 WHATSAPP_CHANNEL = "https://whatsapp.com/channel/0029VbBfAibCxoAtQplkir3Z"
 
-# ================= MENU =================
-def menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🆓 Free Signals", callback_data="free")],
-        [InlineKeyboardButton("💎 VIP Signals", callback_data="vip")],
-        [InlineKeyboardButton("📢 Community", callback_data="community")],
-        [InlineKeyboardButton("ℹ️ About", callback_data="about")],
-    ])
+USERS = set()
+VIP_USERS = {}
 
-# ================= SIGNAL CONTENT =================
-UPDATE_MESSAGES = [
-    "🔴🔵🟣 *LIVE OBSERVATION*\n\n"
-    "📊 Short low runs detected\n"
-    "🧠 Best move: *wait & observe*",
-
-    "📈🟣 *PATTERN UPDATE*\n\n"
-    "🔄 Repeated low multipliers\n"
-    "💡 Spike usually comes after patience",
-
-    "⚠️🔴 *RISK ALERT*\n\n"
-    "📉 High volatility\n"
-    "💣 Crashes below 2.0x spotted",
-
-    "🧠🔵 *SMART TIP*\n\n"
-    "✔️ Pre-set cashout\n"
-    "❌ Avoid emotional entries",
-
-    "📢🔵 *JOIN COMMUNITY*\n\n"
-    f"👉 Group:\n{WHATSAPP_GROUP}\n\n"
-    f"👉 Channel:\n{WHATSAPP_CHANNEL}",
+# ================= SIGNALS =================
+FREE_SIGNALS = [
+    "🔴🔵 *Market Watch*\nLow runs detected — observe patiently.",
+    "🟣 *Risk Alert*\nHigh volatility — reduce stake.",
+    "🔵 *Smart Tip*\nNever chase losses.",
+    "🟣 *Behavior Notice*\nCalm players last longer.",
+    "🔴 *Pattern Monitor*\nShort flights detected."
 ]
+
+VIP_SIGNALS = [
+    "💎 *VIP SIGNAL*\nBias: Medium spike likely\nConfidence: 78%",
+    "💎 *VIP ALERT*\nFake dips detected — wait 1 round",
+    "💎 *VIP INSIGHT*\nMomentum building — safer entry",
+    "💎 *VIP ZONE*\nControlled entry advised"
+]
+
+# ================= HELPERS =================
+def is_vip(user_id):
+    return user_id in VIP_USERS and VIP_USERS[user_id] > datetime.datetime.utcnow()
+
+def menu(user_id):
+    buttons = [
+        [InlineKeyboardButton("📊 Free Signals", callback_data="free")],
+        [InlineKeyboardButton("💎 VIP Signals 🔒", callback_data="vip")],
+        [InlineKeyboardButton("💳 Pay for VIP", callback_data="pay")],
+        [InlineKeyboardButton("📈 My Status", callback_data="status")],
+        [InlineKeyboardButton("📢 WhatsApp Group", url=WHATSAPP_GROUP)],
+        [InlineKeyboardButton("📣 WhatsApp Channel", url=WHATSAPP_CHANNEL)],
+        [InlineKeyboardButton("ℹ️ Help", callback_data="help")]
+    ]
+
+    if is_vip(user_id):
+        buttons[1] = [InlineKeyboardButton("💎 VIP Signals", callback_data="vip")]
+
+    return InlineKeyboardMarkup(buttons)
 
 # ================= COMMANDS =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.application.bot_data["chat_id"] = update.effective_chat.id
+    user_id = update.effective_user.id
+    USERS.add(user_id)
+
     await update.message.reply_text(
         "🤖 *PrimeX Signal Hub*\n\n"
-        "🔔 Live updates every 1 minute\n"
-        "👇 Use menu below",
+        "🔔 Auto updates every 1 minute\n"
+        "💎 VIP unlocks premium signals\n\n"
+        "👇 Choose below",
         parse_mode="Markdown",
-        reply_markup=menu(),
+        reply_markup=menu(user_id)
     )
 
-# ================= BUTTON HANDLER =================
-async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    user_id = q.from_user.id
+    await q.answer()
 
-    if query.data == "free":
-        text = "🆓 *Free Signals*\n\nLive observations only."
-    elif query.data == "vip":
-        text = "💎 *VIP Signals*\n\nPremium access coming soon."
-    elif query.data == "community":
-        text = (
-            "📢 *Join Community*\n\n"
-            f"{WHATSAPP_GROUP}\n\n{WHATSAPP_CHANNEL}"
-        )
-    else:
-        text = "ℹ️ *PrimeX*\n\nReal-time observation bot."
+    if q.data == "free":
+        await q.message.reply_text(random.choice(FREE_SIGNALS), parse_mode="Markdown")
 
-    await query.edit_message_text(
-        text=text,
-        parse_mode="Markdown",
-        reply_markup=menu(),
-    )
+    elif q.data == "vip":
+        if not is_vip(user_id):
+            await q.message.reply_text(
+                "🔒 *VIP Locked*\n\nClick *Pay for VIP* to unlock.",
+                parse_mode="Markdown"
+            )
+        else:
+            await q.message.reply_text(random.choice(VIP_SIGNALS), parse_mode="Markdown")
 
-# ================= AUTO SIGNAL =================
-async def auto_signal(context: ContextTypes.DEFAULT_TYPE):
-    chat_id = context.application.bot_data.get("chat_id")
-    if chat_id:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=random.choice(UPDATE_MESSAGES),
+    elif q.data == "pay":
+        await q.message.reply_text(
+            BANK_DETAILS + "\n\nAfter payment click *I Have Paid*",
             parse_mode="Markdown",
-            reply_markup=menu(),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ I Have Paid", callback_data="paid")]
+            ])
         )
+
+    elif q.data == "paid":
+        await context.bot.send_message(
+            ADMIN_ID,
+            f"💰 *VIP PAYMENT REQUEST*\nUser ID: `{user_id}`",
+            parse_mode="Markdown"
+        )
+        await q.message.reply_text("✅ Payment sent for approval.")
+
+    elif q.data == "status":
+        status = "💎 VIP" if is_vip(user_id) else "🆓 Free"
+        await q.message.reply_text(f"📊 *Status:* {status}", parse_mode="Markdown")
+
+    elif q.data == "help":
+        await q.message.reply_text(
+            "ℹ️ *Help*\n\n"
+            "• Free signals auto-drop\n"
+            "• VIP lasts 30 days\n"
+            "• VIP unlock after payment approval",
+            parse_mode="Markdown"
+        )
+
+async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    if not context.args:
+        await update.message.reply_text("Usage: /approve USER_ID")
+        return
+
+    uid = int(context.args[0])
+    VIP_USERS[uid] = datetime.datetime.utcnow() + datetime.timedelta(days=VIP_DAYS)
+
+    await update.message.reply_text("✅ VIP Approved")
+    await context.bot.send_message(uid, "🎉 *VIP Activated*", parse_mode="Markdown")
+
+# ================= AUTO SIGNAL LOOP =================
+async def auto_signal(app):
+    while True:
+        for uid in USERS:
+            try:
+                await app.bot.send_message(uid, random.choice(FREE_SIGNALS), parse_mode="Markdown")
+            except:
+                pass
+        await asyncio.sleep(60)
 
 # ================= MAIN =================
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(buttons))
+    app.add_handler(CommandHandler("approve", approve))
+    app.add_handler(CallbackQueryHandler(handle_buttons))
 
-    # JobQueue works NOW
-    app.job_queue.run_repeating(auto_signal, interval=60, first=20)
-
-    print("🤖 PrimeX Bot Running")
+    app.post_init = lambda _: asyncio.create_task(auto_signal(app))
     app.run_polling()
 
 if __name__ == "__main__":
