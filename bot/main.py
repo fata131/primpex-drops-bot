@@ -1,76 +1,96 @@
 import os
 import logging
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters
-)
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+logging.basicConfig(level=logging.INFO)
 
-# -------- START --------
+# ===== START =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        ["🆓 Free Signals", "💎 VIP Signals"],
-        ["🎮 Games", "💳 Subscribe"],
-        ["ℹ️ About Bot"]
+        ["🔵 FREE SIGNALS 🔵", "🟣 VIP SIGNALS 🟣"],
+        ["🔴 GAMES 🔴", "💳 SUBSCRIBE 💳"],
+        ["ℹ️ ABOUT BOT"]
     ]
 
-    reply_keyboard = ReplyKeyboardMarkup(
-        keyboard,
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard=keyboard,
         resize_keyboard=True,
-        persistent=True
+        one_time_keyboard=False,
+        input_field_placeholder="Select an option ⬇️"
     )
 
     await update.message.reply_text(
-        "👋 *Welcome to Primpex Drops Bot*\n\nSelect an option below 👇",
-        reply_markup=reply_keyboard,
+        "🔥 *PRIMPEX DROPS BOT* 🔥\n\n"
+        "🎯 *Smart signals*\n"
+        "📊 *Clean analysis*\n"
+        "💰 *Risk management*\n\n"
+        "👇 Choose from menu below",
+        reply_markup=reply_markup,
         parse_mode="Markdown"
     )
 
-# -------- MENU HANDLER --------
+# ===== MENU HANDLER =====
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
-    if text == "🆓 Free Signals":
-        reply = "🆓 *Free Signals*\n\n• Basic drops\n• Light analysis"
-    elif text == "💎 VIP Signals":
-        reply = "🔒 *VIP Signals*\n\nSubscribe to unlock premium signals."
-    elif text == "🎮 Games":
-        reply = "🎮 *Games*\n\n• Aviator ✈️\n• Virtual 🎰"
-    elif text == "💳 Subscribe":
-        reply = "💳 *Subscription*\n\nPayment setup coming soon."
-    elif text == "ℹ️ About Bot":
-        reply = "ℹ️ *Primpex Drops Bot*\n\nPlay responsibly."
+    if "FREE" in text:
+        msg = (
+            "🔵 *FREE SIGNALS* 🔵\n\n"
+            "✔ Light predictions\n"
+            "✔ Market timing\n"
+            "❌ No guarantee"
+        )
+
+    elif "VIP" in text:
+        msg = (
+            "🟣 *VIP SIGNALS* 🟣\n\n"
+            "🔒 Locked content\n"
+            "💎 High accuracy drops\n"
+            "💳 Subscription required"
+        )
+
+    elif "GAMES" in text:
+        msg = (
+            "🔴 *AVAILABLE GAMES* 🔴\n\n"
+            "✈️ Aviator\n"
+            "🎰 Virtual Games\n"
+            "🎲 More coming soon"
+        )
+
+    elif "SUBSCRIBE" in text:
+        msg = (
+            "💳 *SUBSCRIPTION* 💳\n\n"
+            "📌 Weekly & Monthly plans\n"
+            "📌 Payment setup coming next"
+        )
+
+    elif "ABOUT" in text:
+        msg = (
+            "ℹ️ *ABOUT PRIMPEX DROPS BOT*\n\n"
+            "⚠️ Signals are guides only\n"
+            "🎯 Discipline is key"
+        )
+
     else:
-        reply = "❌ Use the menu buttons below."
+        msg = "❌ Use the menu buttons below 👇"
 
-    await update.message.reply_text(reply, parse_mode="Markdown")
+    await update.message.reply_text(msg, parse_mode="Markdown")
 
-# -------- MAIN --------
+# ===== MAIN =====
 def main():
     if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN not set")
+        raise RuntimeError("BOT_TOKEN is missing")
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_handler))
 
-    print("🤖 Bot running on Railway...")
-    app.run_polling(
-        poll_interval=3,
-        timeout=30,
-        drop_pending_updates=True
-    )
+    print("🤖 Bot is live...")
+    app.run_polling(timeout=30)
 
 if __name__ == "__main__":
     main()
