@@ -1,9 +1,11 @@
-import asyncio
-import random
 import os
-
+import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+)
 
 # ===== ENV =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -11,88 +13,79 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 WHATSAPP_GROUP = "https://chat.whatsapp.com/JPA9XEkRReQ3fpzQ7Y4Ldt?mode=hqrt3"
 WHATSAPP_CHANNEL = "https://whatsapp.com/channel/0029VbBfAibCxoAtQplkir3Z"
 
-# ===== AUTO UPDATES =====
+# ===== SIGNAL CONTENT =====
 UPDATE_MESSAGES = [
     "🔴🔵🟣 *LIVE GAME OBSERVATION*\n\n"
-    "📊 Aviator showing fast low runs\n"
-    "🧠 Best move: *observe & wait*\n\n"
-    "⚠️ Blind entry = loss\n"
-    "🔔 Stay sharp",
+    "📊 Fast low runs detected\n"
+    "🧠 Best move: *observe*\n\n"
+    "⚠️ Blind entry = loss",
 
     "📈🟣 *PATTERN MONITOR*\n\n"
-    "🔄 Multiple short flights detected\n"
-    "💡 Medium spike comes *after patience*\n\n"
-    "❌ Don’t chase reds\n"
-    "✅ Control emotions",
+    "🔄 Short flights ongoing\n"
+    "💡 Spike comes after patience\n\n"
+    "✅ Stay calm",
 
     "⚠️🔴 *RISK UPDATE*\n\n"
-    "📉 High volatility right now\n"
-    "💣 Crashes below 2.0x spotted\n\n"
-    "🧠 Reduce stake\n"
-    "⏳ Timing matters",
+    "📉 High volatility\n"
+    "💣 Crashes below 2.0x\n\n"
+    "🧠 Reduce stake",
 
-    "🧠🔵 *SMART PLAY TIP*\n\n"
-    "✔️ Set cashout early\n"
-    "✔️ Skip first round after spike\n"
-    "❌ No emotional staking\n\n"
+    "🧠🔵 *SMART TIP*\n\n"
+    "✔️ Cashout early\n"
+    "❌ No emotions\n\n"
     "📌 Discipline wins",
 
-    "📊🟣 *PLAYER BEHAVIOR*\n\n"
-    "👥 80% lose by rushing\n"
-    "🧠 Calm players last longer\n\n"
-    "🔄 Observe → Decide → Enter",
-
     "📢🔵 *COMMUNITY UPDATE*\n\n"
-    f"👉 *WhatsApp Group*: {WHATSAPP_GROUP}\n"
-    f"👉 *WhatsApp Channel*: {WHATSAPP_CHANNEL}\n\n"
+    f"👉 Group: {WHATSAPP_GROUP}\n"
+    f"👉 Channel: {WHATSAPP_CHANNEL}\n\n"
     "🚀 Stay connected"
 ]
 
-# ===== BUTTON MENU =====
-def main_menu():
-    keyboard = [
+# ===== MENU =====
+def menu():
+    return InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 Live Signals", callback_data="signals")],
         [InlineKeyboardButton("💬 WhatsApp Group", url=WHATSAPP_GROUP)],
         [InlineKeyboardButton("📢 WhatsApp Channel", url=WHATSAPP_CHANNEL)],
-        [InlineKeyboardButton("ℹ️ How It Works", callback_data="info")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
+    ])
 
-# ===== COMMANDS =====
+# ===== START =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.application.bot_data["chat_id"] = update.effective_chat.id
 
     await update.message.reply_text(
         "🤖 *PrimeX Signal Hub*\n\n"
-        "🔴🔵🟣 Live signal feed active\n"
-        "📊 Updates drop automatically\n\n"
-        "👇 Use the menu below",
-        reply_markup=main_menu(),
+        "🔴🔵🟣 Live updates enabled\n"
+        "⏱ Signals drop every minute\n\n"
+        "👇 Use menu below",
+        reply_markup=menu(),
         parse_mode="Markdown"
     )
 
-# ===== AUTO POST TASK =====
-async def auto_updates(app):
-    await asyncio.sleep(15)
-    while True:
-        chat_id = app.bot_data.get("chat_id")
-        if chat_id:
-            try:
-                await app.bot.send_message(
-                    chat_id=chat_id,
-                    text=random.choice(UPDATE_MESSAGES),
-                    parse_mode="Markdown",
-                    reply_markup=main_menu()
-                )
-            except:
-                pass
-        await asyncio.sleep(60)  # every 1 minute
+# ===== AUTO SIGNAL JOB =====
+async def auto_signal(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.application.bot_data.get("chat_id")
+    if chat_id:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=random.choice(UPDATE_MESSAGES),
+            parse_mode="Markdown",
+            reply_markup=menu()
+        )
 
-# ===== RUN =====
+# ===== MAIN =====
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
-    app.create_task(auto_updates(app))
+
+    # JobQueue (SAFE & STABLE)
+    app.job_queue.run_repeating(
+        auto_signal,
+        interval=60,   # every 1 minute
+        first=15
+    )
+
     app.run_polling()
 
 if __name__ == "__main__":
