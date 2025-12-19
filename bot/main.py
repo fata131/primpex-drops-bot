@@ -3,7 +3,12 @@ import asyncio
 import random
 import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+)
 
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -46,7 +51,7 @@ VIP_SIGNALS = [
 def is_vip(user_id):
     return user_id in VIP_USERS and VIP_USERS[user_id] > datetime.datetime.utcnow()
 
-def menu(user_id):
+def main_menu(user_id):
     buttons = [
         [InlineKeyboardButton("📊 Free Signals", callback_data="free")],
         [InlineKeyboardButton("💎 VIP Signals 🔒", callback_data="vip")],
@@ -73,13 +78,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💎 VIP unlocks premium signals\n\n"
         "👇 Choose below",
         parse_mode="Markdown",
-        reply_markup=menu(user_id)
+        reply_markup=main_menu(user_id)
     )
 
-async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    user_id = q.from_user.id
     await q.answer()
+    user_id = q.from_user.id
 
     if q.data == "free":
         await q.message.reply_text(random.choice(FREE_SIGNALS), parse_mode="Markdown")
@@ -95,7 +100,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif q.data == "pay":
         await q.message.reply_text(
-            BANK_DETAILS + "\n\nAfter payment click *I Have Paid*",
+            BANK_DETAILS,
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ I Have Paid", callback_data="paid")]
@@ -138,25 +143,35 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(uid, "🎉 *VIP Activated*", parse_mode="Markdown")
 
 # ================= AUTO SIGNAL LOOP =================
-async def auto_signal(app):
+async def auto_signal_loop(app):
     while True:
-        for uid in USERS:
+        for uid in list(USERS):
             try:
-                await app.bot.send_message(uid, random.choice(FREE_SIGNALS), parse_mode="Markdown")
+                await app.bot.send_message(
+                    uid,
+                    random.choice(FREE_SIGNALS),
+                    parse_mode="Markdown"
+                )
             except:
                 pass
         await asyncio.sleep(60)
 
 # ================= MAIN =================
-def main():
+async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("approve", approve))
-    app.add_handler(CallbackQueryHandler(handle_buttons))
+    app.add_handler(CallbackQueryHandler(buttons))
 
-    app.post_init = lambda _: asyncio.create_task(auto_signal(app))
-    app.run_polling()
+    await app.initialize()
+    await app.start()
+
+    asyncio.create_task(auto_signal_loop(app))
+
+    await app.bot.initialize()
+    await app.updater.start_polling()
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
