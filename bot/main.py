@@ -1,23 +1,22 @@
 import os
-import threading
-from flask import Flask
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes
+)
 
-# ====== ENV ======
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+# ---------------- CONFIG ----------------
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# ====== FLASK KEEP-ALIVE SERVER ======
-app_flask = Flask(__name__)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
 
-@app_flask.route("/")
-def home():
-    return "Bot is running"
-
-def run_flask():
-    app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
-
-# ====== TELEGRAM BOT ======
+# ---------------- START ----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🆓 Free Signals", callback_data="free")],
@@ -28,26 +27,44 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await update.message.reply_text(
-        "👋 Welcome to *Primpex Drops Bot*\n\nChoose an option 👇",
+        "👋 *Welcome to Primpex Drops Bot*\n\nChoose an option 👇",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(f"You clicked: {query.data}")
+# ---------------- BUTTON HANDLER ----------------
+async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
 
+    if q.data == "free":
+        text = "🆓 *Free Signals*\n\n• Light predictions\n• Basic analysis"
+    elif q.data == "vip":
+        text = "🔒 *VIP Signals*\n\nSubscribe to unlock premium drops."
+    elif q.data == "games":
+        text = "🎮 *VIP Games*\n\n• Aviator ✈️\n• Virtual 🎰"
+    elif q.data == "subscribe":
+        text = "💳 *Subscription*\n\nPayment system coming soon."
+    else:
+        text = "ℹ️ *Primpex Drops Bot*\nPlay responsibly."
+
+    await q.edit_message_text(text, parse_mode="Markdown")
+
+# ---------------- MAIN ----------------
 def main():
-    print("🤖 Bot starting...")
+    if not BOT_TOKEN:
+        raise RuntimeError("BOT_TOKEN not set")
 
-    threading.Thread(target=run_flask).start()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(buttons))
 
-    application = Application.builder().token(BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(button_handler))
-
-    application.run_polling(drop_pending_updates=True)
+    print("🤖 Bot running on Railway...")
+    app.run_polling(
+        poll_interval=3,
+        timeout=30,
+        drop_pending_updates=True
+    )
 
 if __name__ == "__main__":
     main()
