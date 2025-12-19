@@ -1,96 +1,99 @@
+import asyncio
+import random
 import os
-import logging
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+
+# ===== ENV =====
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-logging.basicConfig(level=logging.INFO)
+WHATSAPP_GROUP = "https://chat.whatsapp.com/JPA9XEkRReQ3fpzQ7Y4Ldt?mode=hqrt3"
+WHATSAPP_CHANNEL = "https://whatsapp.com/channel/0029VbBfAibCxoAtQplkir3Z"
 
-# ===== START =====
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ===== AUTO UPDATES =====
+UPDATE_MESSAGES = [
+    "🔴🔵🟣 *LIVE GAME OBSERVATION*\n\n"
+    "📊 Aviator showing fast low runs\n"
+    "🧠 Best move: *observe & wait*\n\n"
+    "⚠️ Blind entry = loss\n"
+    "🔔 Stay sharp",
+
+    "📈🟣 *PATTERN MONITOR*\n\n"
+    "🔄 Multiple short flights detected\n"
+    "💡 Medium spike comes *after patience*\n\n"
+    "❌ Don’t chase reds\n"
+    "✅ Control emotions",
+
+    "⚠️🔴 *RISK UPDATE*\n\n"
+    "📉 High volatility right now\n"
+    "💣 Crashes below 2.0x spotted\n\n"
+    "🧠 Reduce stake\n"
+    "⏳ Timing matters",
+
+    "🧠🔵 *SMART PLAY TIP*\n\n"
+    "✔️ Set cashout early\n"
+    "✔️ Skip first round after spike\n"
+    "❌ No emotional staking\n\n"
+    "📌 Discipline wins",
+
+    "📊🟣 *PLAYER BEHAVIOR*\n\n"
+    "👥 80% lose by rushing\n"
+    "🧠 Calm players last longer\n\n"
+    "🔄 Observe → Decide → Enter",
+
+    "📢🔵 *COMMUNITY UPDATE*\n\n"
+    f"👉 *WhatsApp Group*: {WHATSAPP_GROUP}\n"
+    f"👉 *WhatsApp Channel*: {WHATSAPP_CHANNEL}\n\n"
+    "🚀 Stay connected"
+]
+
+# ===== BUTTON MENU =====
+def main_menu():
     keyboard = [
-        ["🔵 FREE SIGNALS 🔵", "🟣 VIP SIGNALS 🟣"],
-        ["🔴 GAMES 🔴", "💳 SUBSCRIBE 💳"],
-        ["ℹ️ ABOUT BOT"]
+        [InlineKeyboardButton("📊 Live Signals", callback_data="signals")],
+        [InlineKeyboardButton("💬 WhatsApp Group", url=WHATSAPP_GROUP)],
+        [InlineKeyboardButton("📢 WhatsApp Channel", url=WHATSAPP_CHANNEL)],
+        [InlineKeyboardButton("ℹ️ How It Works", callback_data="info")]
     ]
+    return InlineKeyboardMarkup(keyboard)
 
-    reply_markup = ReplyKeyboardMarkup(
-        keyboard=keyboard,
-        resize_keyboard=True,
-        one_time_keyboard=False,
-        input_field_placeholder="Select an option ⬇️"
-    )
+# ===== COMMANDS =====
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.application.bot_data["chat_id"] = update.effective_chat.id
 
     await update.message.reply_text(
-        "🔥 *PRIMPEX DROPS BOT* 🔥\n\n"
-        "🎯 *Smart signals*\n"
-        "📊 *Clean analysis*\n"
-        "💰 *Risk management*\n\n"
-        "👇 Choose from menu below",
-        reply_markup=reply_markup,
+        "🤖 *PrimeX Signal Hub*\n\n"
+        "🔴🔵🟣 Live signal feed active\n"
+        "📊 Updates drop automatically\n\n"
+        "👇 Use the menu below",
+        reply_markup=main_menu(),
         parse_mode="Markdown"
     )
 
-# ===== MENU HANDLER =====
-async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+# ===== AUTO POST TASK =====
+async def auto_updates(app):
+    await asyncio.sleep(15)
+    while True:
+        chat_id = app.bot_data.get("chat_id")
+        if chat_id:
+            try:
+                await app.bot.send_message(
+                    chat_id=chat_id,
+                    text=random.choice(UPDATE_MESSAGES),
+                    parse_mode="Markdown",
+                    reply_markup=main_menu()
+                )
+            except:
+                pass
+        await asyncio.sleep(60)  # every 1 minute
 
-    if "FREE" in text:
-        msg = (
-            "🔵 *FREE SIGNALS* 🔵\n\n"
-            "✔ Light predictions\n"
-            "✔ Market timing\n"
-            "❌ No guarantee"
-        )
-
-    elif "VIP" in text:
-        msg = (
-            "🟣 *VIP SIGNALS* 🟣\n\n"
-            "🔒 Locked content\n"
-            "💎 High accuracy drops\n"
-            "💳 Subscription required"
-        )
-
-    elif "GAMES" in text:
-        msg = (
-            "🔴 *AVAILABLE GAMES* 🔴\n\n"
-            "✈️ Aviator\n"
-            "🎰 Virtual Games\n"
-            "🎲 More coming soon"
-        )
-
-    elif "SUBSCRIBE" in text:
-        msg = (
-            "💳 *SUBSCRIPTION* 💳\n\n"
-            "📌 Weekly & Monthly plans\n"
-            "📌 Payment setup coming next"
-        )
-
-    elif "ABOUT" in text:
-        msg = (
-            "ℹ️ *ABOUT PRIMPEX DROPS BOT*\n\n"
-            "⚠️ Signals are guides only\n"
-            "🎯 Discipline is key"
-        )
-
-    else:
-        msg = "❌ Use the menu buttons below 👇"
-
-    await update.message.reply_text(msg, parse_mode="Markdown")
-
-# ===== MAIN =====
+# ===== RUN =====
 def main():
-    if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN is missing")
-
-    app = Application.builder().token(BOT_TOKEN).build()
-
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_handler))
-
-    print("🤖 Bot is live...")
-    app.run_polling(timeout=30)
+    app.create_task(auto_updates(app))
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
